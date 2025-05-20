@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCG Data Editor (API Connected - Updated Guarantees)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="min-h-screen p-4 selection:bg-indigo-500 selection:text-white">
+
+    <div class="container mx-auto max-w-5xl container-bg p-6 sm:p-8 rounded-xl shadow-2xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-indigo-400">TCG Data Editor (API Connected)</h1>
+            <p class="text-slate-400">Manage TCGs, sets, rarities, products, cards, and pull rates.</p>
+        </header>
+
+        <section class="mb-6 p-4 bg-gray-800 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-3 text-indigo-300">Data Management</h2>
+            <div class="flex flex-wrap gap-3 items-end">
+                <button id="loadDataButton" class="btn btn-primary">Load TCGs from Server</button>
+                <button id="exportDataButton" class="btn btn-secondary">Export AppDB (JSON)</button>
+                <div>
+                    <label for="importDataInput" class="text-sm">Import to AppDB (JSON):</label>
+                    <input type="file" id="importDataInput" accept=".json" class="text-sm input-field p-1">
+                </div>
+                <button id="toggleTemplateManagerButton" class="btn btn-info">Manage Guarantee Templates</button> </div>
+             <p class="text-xs text-slate-400 mt-2">(Data is saved per action. Export/Import for local backup/transfer)</p>
+            <p id="statusMessage" class="text-sm mt-2 text-yellow-400 h-5"></p>
+        </section>
+
+        <section id="templateManagementSection" class="management-section">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold text-indigo-300">Guarantee Template Management</h2>
+                <button id="showAddTemplateFormButton" class="btn btn-primary btn-sm">Add New Template</button>
+            </div>
+
+            <div id="addEditTemplateFormContainer" class="config-section mb-6 hidden">
+                <h3 id="templateFormTitle" class="text-lg font-medium mb-3 text-slate-300">Add New Guarantee Template</h3>
+                <form id="addEditTemplateForm" class="space-y-3">
+                    <input type="hidden" id="templateIdInput">
+                    <div>
+                        <label for="templateNameInput">Template Name:</label>
+                        <input type="text" id="templateNameInput" class="input-field" required>
+                    </div>
+                    <div>
+                        <label for="templateDescriptionInput">Description (Optional):</label>
+                        <textarea id="templateDescriptionInput" class="input-field !min-h-[80px]"></textarea>
+                    </div>
+                    <div>
+                        <label for="templateScopeSelect">Scope:</label>
+                        <select id="templateScopeSelect" class="input-field" required>
+                            <option value="">-- Select Scope --</option>
+                            <option value="box">Box</option>
+                            <option value="case">Case</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end gap-3">
+                        <button type="button" id="cancelEditTemplateButton" class="btn btn-secondary hidden">Cancel</button>
+                        <button type="submit" id="saveTemplateButton" class="btn btn-success">Save Template</button>
+                    </div>
+                </form>
+            </div>
+
+            <h3 class="text-lg font-medium mb-2 text-slate-300">Existing Templates</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                <div>
+                    <label for="filterTemplateScopeSelect">Filter by Scope:</label>
+                    <select id="filterTemplateScopeSelect" class="input-field">
+                        <option value="">All Scopes</option>
+                        <option value="box">Box Only</option>
+                        <option value="case">Case Only</option>
+                    </select>
+                </div>
+            </div>
+            <div id="templateListContainer" class="mb-6">
+                <p class="text-slate-400">Loading templates...</p>
+            </div>
+
+            <section id="templateRulesManagementSection" class="config-section hidden border-t-2 border-indigo-700/50 pt-4 mt-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-indigo-300">Edit Rules for Template: <span id="editingTemplateNameDisplay" class="text-indigo-400"></span></h3>
+                    <button id="closeTemplateRulesEditorButton" class="btn btn-sm btn-secondary">Close Rules Editor</button>
+                </div>
+                 <div id="templateRulesContainer" class="space-y-3 mb-4 bg-gray-800 p-3 rounded-md">
+                    </div>
+                <div class="flex justify-between items-center mt-6">
+                    <button id="addNewRuleToTemplateButton" class="btn btn-primary">Add New Rule to Template</button>
+                    <button id="saveAllRulesToTemplateButton" class="btn btn-success">Save All Rules to Template</button>
+                </div>
+            </section>
+        </section>
+        <section id="tcgManagementSection" class="management-section">
+            <h2 class="text-2xl font-semibold mb-4 text-indigo-300">TCG Management</h2>
+            <div id="tcgListContainer" class="mb-4"></div>
+            <div class="config-section">
+                <h3 class="text-lg font-medium mb-2 text-slate-300">Add/Edit TCG</h3>
+                <form id="addTcgForm" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div><label for="newTcgId">TCG ID:</label><input type="text" id="newTcgId" class="input-field" required pattern="^\S+$"></div>
+                    <div><label for="newTcgName">TCG Name:</label><input type="text" id="newTcgName" class="input-field" required></div>
+                    <button type="submit" class="btn btn-primary self-end">Add TCG</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="setManagementSection" class="management-section hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-indigo-300">Set Management for <span id="selectedTcgName" class="text-indigo-400"></span></h2>
+            <div id="setListContainer" class="mb-4"></div>
+            <div class="config-section">
+                <h3 class="text-lg font-medium mb-2 text-slate-300">Add/Edit Set</h3>
+                <form id="addSetForm" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div><label for="newSetId">Set ID:</label><input type="text" id="newSetId" class="input-field" required pattern="^\S+$"></div>
+                    <div><label for="newSetName">Set Name:</label><input type="text" id="newSetName" class="input-field" required></div>
+                    <button type="submit" class="btn btn-primary self-end">Add Set</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="rarityManagementSection" class="management-section hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-indigo-300">Rarity Management for <span id="selectedSetNameForRarity" class="text-indigo-400"></span></h2>
+            <div id="rarityListContainer" class="mb-4"></div>
+            <div class="config-section">
+                <h3 class="text-lg font-medium mb-2 text-slate-300">Add/Edit Rarity</h3>
+                <form id="addRarityForm" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div><label for="newRarityId">Rarity ID:</label><input type="text" id="newRarityId" class="input-field" required pattern="^\S+$" placeholder="e.g., SR or SIG"></div>
+                    <div><label for="newRarityName">Rarity Name:</label><input type="text" id="newRarityName" class="input-field" required placeholder="e.g., Super Rare or Signature"></div>
+                    <div><label for="newRarityColorClass">Tailwind BG Color:</label><input type="text" id="newRarityColorClass" class="input-field" placeholder="e.g., rarity-SR or bg-yellow-500" required></div>
+                    <button type="submit" class="btn btn-primary self-end">Add Rarity</button>
+                </form>
+            </div>
+            <div id="copyRaritiesSection" class="sub-section mt-6">
+                <h3 class="text-lg font-medium mb-3 text-slate-300">Copy Rarities from Another Set</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div><label for="copySourceTcgSelect">Source TCG:</label><select id="copySourceTcgSelect" class="input-field"></select></div>
+                    <div><label for="copySourceSetSelect">Source Set:</label><select id="copySourceSetSelect" class="input-field"></select></div>
+                    <button id="copyRaritiesButton" class="btn btn-secondary self-end">Copy Rarities</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="productManagementSection" class="management-section hidden">
+             <h2 class="text-2xl font-semibold mb-4 text-indigo-300">Product Management for <span id="selectedSetNameForProductManagement" class="text-indigo-400"></span></h2>
+             <div id="productListContainer" class="mb-4"></div>
+             <div class="config-section">
+                <h3 class="text-lg font-medium mb-2 text-slate-300">Add/Edit Product Details</h3>
+                <form id="addProductForm" class="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-3 items-start">
+                    <div><label for="newProductId">Product ID:</label><input type="text" id="newProductId" class="input-field" required pattern="^\S+$"></div>
+                    <div><label for="newProductName">Product Name:</label><input type="text" id="newProductName" class="input-field" required></div>
+                    <div>
+                        <label for="newProductType">Product Type:</label>
+                        <select id="newProductType" class="input-field" required>
+                            <option value="">--Select Type--</option>
+                            <option value="pack">Pack</option>
+                            <option value="box">Box</option>
+                            <option value="case">Case</option>
+                        </select>
+                    </div>
+                    <div id="packSpecificFields" class="product-type-fields md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                        <div><label for="newProductCardsPerPack">Cards Per Pack:</label><input type="number" id="newProductCardsPerPack" class="input-field" min="1"></div>
+                    </div>
+                    <div id="boxSpecificFields" class="product-type-fields md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                        <div><label for="newProductPacksPerBox">Packs Per Box:</label><input type="number" id="newProductPacksPerBox" class="input-field" min="1"></div>
+                        <div><label for="newProductPackProductId">Contained Pack Product ID:</label><input type="text" id="newProductPackProductId" class="input-field" placeholder="e.g., op01_pack"></div>
+                    </div>
+                    <div id="caseSpecificFields" class="product-type-fields md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                        <div><label for="newProductBoxesPerCase">Boxes Per Case:</label><input type="number" id="newProductBoxesPerCase" class="input-field" min="1"></div>
+                        <div><label for="newProductBoxProductId">Contained Box Product ID:</label><input type="text" id="newProductBoxProductId" class="input-field" placeholder="e.g., op01_booster_box"></div>
+                    </div>
+                    <div class="md:col-span-3 flex justify-end">
+                        <button type="submit" class="btn btn-primary mt-3">Add Product</button>
+                    </div>
+                </form>
+             </div>
+        </section>
+
+        <section id="cardManagementSection" class="management-section hidden">
+            <h2 class="text-2xl font-semibold mb-4 text-indigo-300">Card Management for <span id="selectedSetNameForCardManagement" class="text-indigo-400"></span></h2>
+            <div id="cardListContainer" class="mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <p class="text-slate-400 col-span-full">Loading cards...</p>
+            </div>
+			<div class="config-section mt-6 border-t-2 border-indigo-600 pt-4">
+    <h3 class="text-lg font-medium mb-2 text-slate-300">Import Cards from CSV</h3>
+    <div class="flex flex-col sm:flex-row gap-3 items-start">
+        <div class="flex-grow">
+            <label for="cardCsvImportInput" class="text-sm">Select CSV File:</label>
+            <input type="file" id="cardCsvImportInput" accept=".csv" class="input-field p-1">
+        </div>
+        <button id="importCardsCsvButton" class="btn btn-info btn-sm self-end whitespace-nowrap">Import Cards</button>
+    </div>
+    <div id="cardImportStatus" class="mt-3 text-sm">
+        </div>
+</div>
+            <div class="config-section">
+                <h3 class="text-lg font-medium mb-2 text-slate-300">Add/Edit Card</h3>
+                <form id="addCardForm" class="space-y-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div><label for="newCardId">Card ID / Number (e.g., OP01-001):</label><input type="text" id="newCardId" class="input-field" required pattern="^\S+$"></div>
+                        <div><label for="newCardName">Card Name:</label><input type="text" id="newCardName" class="input-field" required></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label for="newCardRarityId">Rarity:</label>
+                            <select id="newCardRarityId" class="input-field" required>
+                                <option value="">-- Select Rarity --</option>
+                            </select>
+                        </div>
+                        <div><label for="newCardMarketPrice">Market Price (USD):</label><input type="number" id="newCardMarketPrice" class="input-field" step="0.01" min="0" placeholder="0.00"></div>
+                    </div>
+                    <div><label for="newCardImageUrl">Image URL (optional):</label><input type="url" id="newCardImageUrl" class="input-field" placeholder="https://example.com/image.jpg"></div>
+                    <div><label for="newCardCardNumber">Collector Number (if different from ID):</label><input type="text" id="newCardCardNumber" class="input-field" pattern="^\S*$"></div>
+                    <div class="flex justify-end">
+                        <button type="submit" class="btn btn-primary mt-2">Add Card to Set</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section id="packConfigEditor" class="management-section hidden">
+            <h2 class="text-xl font-semibold mb-3 text-indigo-300">Edit Pack Configuration: <span id="editingProductName" class="text-indigo-400"></span></h2>
+            <div class="mb-4">
+                <label for="cardsPerPackInput">Total Cards Per Pack:</label>
+                <input type="number" id="cardsPerPackInput" class="input-field w-auto" min="1">
+            </div>
+            <h3 class="text-lg font-medium mb-2 text-slate-300">Slot Configuration</h3>
+            <div id="slotConfigurationContainer"></div>
+            <div class="mt-4 flex justify-end gap-3">
+                <button id="addSlotButton" class="btn btn-secondary">Add New Slot</button>
+                <button id="savePackConfigurationButton" class="btn btn-success">Save Pack Configuration</button>
+            </div>
+        </section>
+
+        <section id="boxGuaranteeEditorSection" class="management-section hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-indigo-300">Edit Box Guarantees: <span id="editingBoxProductName" class="text-indigo-400"></span></h2>
+                <button id="closeBoxGuaranteeEditorButton" class="btn btn-sm btn-secondary">Close Editor</button>
+            </div>
+            <div class="mb-6 p-3 config-section border border-indigo-700/50">
+                <h4 class="text-md font-medium mb-2 text-slate-300">Apply Guarantee Template</h4>
+                <div class="flex flex-col sm:flex-row gap-2 items-end">
+                    <div class="flex-grow w-full sm:w-auto">
+                        <label for="boxGuaranteeTemplateSelect" class="text-sm">Select Template:</label>
+                        <select id="boxGuaranteeTemplateSelect" class="input-field">
+                            <option value="">-- No Template Selected --</option>
+                        </select>
+                    </div>
+                    <button id="applyBoxGuaranteeTemplateButton" class="btn btn-secondary btn-sm whitespace-nowrap">Apply Selected Template</button>
+                </div>
+            </div>
+            <div class="mb-4 config-section p-3">
+                <label for="boxNotesInput">Notes for these guarantees (optional):</label>
+                <input type="text" id="boxNotesInput" class="input-field" placeholder="e.g., Based on community observations">
+            </div>
+            <h3 class="text-lg font-medium mb-2 text-slate-300">Guarantee Rules for this Box:</h3>
+            <div id="boxGuaranteeRulesContainer" class="space-y-3 mb-4 bg-gray-800 p-3 rounded-md">
+                <p class="text-slate-400">No guarantee rules defined yet.</p>
+            </div>
+            <div class="flex justify-between items-center mt-6">
+                <button id="addNewBoxGuaranteeRuleButton" class="btn btn-primary">Add New Rule</button>
+                <button id="saveBoxGuaranteesButton" class="btn btn-success">Save All Box Guarantees to Product</button>
+            </div>
+        </section>
+
+        <section id="caseGuaranteeEditorSection" class="management-section hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-indigo-300">Edit Case Guarantees: <span id="editingCaseProductName" class="text-indigo-400"></span></h2>
+                <button id="closeCaseGuaranteeEditorButton" class="btn btn-sm btn-secondary">Close Editor</button>
+            </div>
+             <div class="mb-6 p-3 config-section border border-indigo-700/50">
+                <h4 class="text-md font-medium mb-2 text-slate-300">Apply Guarantee Template</h4>
+                <div class="flex flex-col sm:flex-row gap-2 items-end">
+                    <div class="flex-grow w-full sm:w-auto">
+                        <label for="caseGuaranteeTemplateSelect" class="text-sm">Select Template:</label>
+                        <select id="caseGuaranteeTemplateSelect" class="input-field">
+                            <option value="">-- No Template Selected --</option>
+                        </select>
+                    </div>
+                    <button id="applyCaseGuaranteeTemplateButton" class="btn btn-secondary btn-sm whitespace-nowrap">Apply Selected Template</button>
+                </div>
+            </div>
+            <div class="mb-4 config-section p-3">
+                <label for="caseNotesInput">Notes for these guarantees (optional):</label>
+                <input type="text" id="caseNotesInput" class="input-field" placeholder="e.g., Expected averages per 12-box case">
+            </div>
+            <h3 class="text-lg font-medium mb-2 text-slate-300">Guarantee Rules for this Case:</h3>
+            <div id="caseGuaranteeRulesContainer" class="space-y-3 mb-4 bg-gray-800 p-3 rounded-md">
+                <p class="text-slate-400">No guarantee rules defined yet.</p>
+            </div>
+            <div class="flex justify-between items-center mt-6">
+                <button id="addNewCaseGuaranteeRuleButton" class="btn btn-primary">Add New Rule</button>
+                <button id="saveCaseGuaranteesButton" class="btn btn-success">Save All Case Guarantees to Product</button>
+            </div>
+        </section>
+
+        <div id="guaranteeRuleFormModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+            <div class="modal-content container-bg max-w-2xl w-full p-6 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h4 class="text-lg font-semibold text-indigo-400" id="ruleFormTitle">Add/Edit Guarantee Rule</h4>
+                    <button id="closeRuleFormButton" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+                <input type="hidden" id="editingRuleIndex" value="-1">
+                <input type="hidden" id="editingRuleScopeType" value="box">
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label for="ruleIdInput">Rule ID (unique):</label><input type="text" id="ruleIdInput" class="input-field" placeholder="e.g., box_sr_guarantee, case_leader_avg"></div>
+                        <div><label for="ruleDescriptionInput">Description:</label><input type="text" id="ruleDescriptionInput" class="input-field" placeholder="e.g., Guaranteed Super Rares per Box"></div>
+                    </div>
+                    <div>
+                        <label for="ruleTypeSelect">Rule Type:</label>
+                        <select id="ruleTypeSelect" class="input-field">
+                            <option value="">-- Select Type --</option>
+                            <option value="atLeast">At Least (Min)</option>
+                            <option value="atMost">At Most (Max)</option>
+                            <option value="exact">Exactly</option>
+                            <option value="range">Range (Min-Max)</option>
+                            <option value="average">Target Average (Informational/Seeding)</option>
+                            <option value="chase">Chase (Probabilistic)</option>
+                            <option value="boxTopper">Box Topper (Box Guarantees Only)</option>
+                        </select>
+                    </div>
+                    <div id="ruleCountFieldsContainer" class="sub-section p-3 space-y-2">
+                        <div><label for="ruleCountMinInput">Min Count:</label><input type="number" id="ruleCountMinInput" class="input-field" min="0"></div>
+                        <div><label for="ruleCountMaxInput">Max Count:</label><input type="number" id="ruleCountMaxInput" class="input-field" min="0"></div>
+                        <div><label for="ruleCountExactInput">Exact Count:</label><input type="number" id="ruleCountExactInput" class="input-field" min="0"></div>
+                        <div><label for="ruleCountTargetAverageInput">Target Average:</label><input type="number" id="ruleCountTargetAverageInput" class="input-field" step="any" min="0"></div>
+                    </div>
+                    <div class="sub-section p-3">
+    <label class="font-medium text-slate-300">Target Entities (for count/chase types)</label>
+
+    <div id="ruleTargetRaritySelectContainer" class="mt-2">
+        <label for="ruleTargetRarityIdsSelect">Target Rarity IDs (Ctrl/Cmd + Click for multiple):</label>
+        <select id="ruleTargetRarityIdsSelect" class="input-field h-32" multiple></select>
+    </div>
+
+    <div id="ruleTargetRarityTextContainer" class="mt-2 hidden"> <label for="ruleTargetRarityIdsTextarea">Target Rarity IDs (comma-separated for Template):</label>
+        <textarea id="ruleTargetRarityIdsTextarea" class="input-field !min-h-[80px]" placeholder="e.g., C, UC, SR, AA_L"></textarea>
+    </div>
+
+    <p class="text-xs text-center my-2 text-slate-400">OR (less common)</p>
+    <div>
+        <label for="ruleTargetCardIdsInput">Target Card IDs (comma-separated):</label>
+        <input type="text" id="ruleTargetCardIdsInput" class="input-field" placeholder="e.g., OP01-001, OP01-025 (if not targeting rarities)">
+    </div>
+</div>
+                    <div id="chaseRuleFieldsContainer" class="sub-section p-3 space-y-2 hidden">
+                        <h5 class="font-medium text-slate-300">Chase Rule Specifics:</h5>
+                        <div><label for="ruleChaseChanceInput">Chance (0.0 to 1.0):</label><input type="number" id="ruleChaseChanceInput" class="input-field" step="0.0001" min="0" max="1" placeholder="e.g., 0.1 for 10%"></div>
+                        <div><label for="ruleChaseGuaranteedIfHitInput">Guaranteed if Hit (count):</label><input type="number" id="ruleChaseGuaranteedIfHitInput" class="input-field" min="1" value="1"></div>
+                        <div><label class="flex items-center mt-1"><input type="checkbox" id="ruleChaseAddsToTotalInput" class="mr-2 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 border-gray-500"> Adds to total pulls (does not replace a common)</label></div>
+                    </div>
+                    <div id="boxTopperRuleFieldsContainer" class="sub-section p-3 space-y-3 hidden">
+                        <h5 class="font-medium text-slate-300">Box Topper Specifics:</h5>
+                        <div>
+                            <label for="ruleBTQuantityInput">Quantity of Topper Items (Cards Drawn):</label>
+                            <input type="number" id="ruleBTQuantityInput" class="input-field" min="1" value="1">
+                        </div>
+                        <div>
+                            <label for="ruleBTSourcePackProductIdInput">Source Pack Product ID (Cards drawn from this pack):</label>
+                            <input type="text" id="ruleBTSourcePackProductIdInput" class="input-field" placeholder="e.g., op01_promo_pack" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" id="cancelRuleFormButton" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="saveRuleFormButton" class="btn btn-success">Save Rule to List</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script src="scripts/dataModels.js" defer></script>
+    <script src="scripts/apiService.js" defer></script>
+    <script src="scripts/templateManager.js" defer></script>  <script src="scripts/uiManager.js" defer></script>      <script src="scripts/cardImporter.js" defer></script>   <script src="scripts/app.js" defer></script>
+</body>
+</html>

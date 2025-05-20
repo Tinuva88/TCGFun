@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal TCG Simulator Framework</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* Dark background */
+            color: #d1d5db; /* Light gray text */
+        }
+        .container-bg { background-color: #1f2937; }
+        .card {
+            background-color: #374151; /* Darker card background */
+            border: 1px solid #4b5563;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease-in-out;
+            overflow: hidden;
+        }
+        .card:hover { transform: translateY(-5px); }
+        .card img {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 2.5 / 3.5;
+            object-fit: cover;
+            border-bottom: 1px solid #4b5563;
+        }
+        .card-content { padding: 12px; }
+        .card-name { font-weight: 600; color: #f3f4f6; }
+        .card-rarity-tag {
+            font-size: 0.75rem; /* Smaller rarity tag */
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+            display: inline-block;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+        /* Rarity specific colors - adjust as needed for One Piece */
+        .rarity-C { background-color: #6b7280; color: #e5e7eb; } /* Gray */
+        .rarity-UC { background-color: #3b82f6; color: #eff6ff; } /* Blue */
+        .rarity-R { background-color: #10b981; color: #d1fae5; } /* Green */
+        .rarity-SR { background-color: #ef4444; color: #fef2f2; } /* Red */
+        .rarity-L { background-color: #a855f7; color: #f3e8ff; } /* Purple */
+        .rarity-SEC { background-color: #f59e0b; color: #fffbeb; } /* Amber */
+        .rarity-P { background-color: #22d3ee; color: #0e7490;} /* Parallel/Alt Art - General */
+        .rarity-R_P { background-color: #10b981; color: #065f46; border: 1px solid #a7f3d0;} /* Parallel Rare */
+        .rarity-SR_P { background-color: #ef4444; color: #991b1b; border: 1px solid #fecaca;}/* Parallel SR */
+        .rarity-L_P { background-color: #a855f7; color: #581c87; border: 1px solid #e9d5ff;} /* Parallel Leader */
+        .rarity-SEC_P { background-color: #f59e0b; color: #78350f; border: 1px solid #fed7aa;}/* Parallel SEC */
+        .rarity-MANGA { background-color: #f472b6; color: #831843; border: 2px dashed #fbcfe8;}/* Manga */
+
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            border: none;
+        }
+        .btn-primary { background-color: #4f46e5; color: white; }
+        .btn-primary:hover { background-color: #4338ca; }
+        .btn-secondary { background-color: #4b5563; color: white; }
+        .btn-secondary:hover { background-color: #525f70; }
+
+        select {
+            background-color: #374151;
+            border: 1px solid #4b5563;
+            color: #d1d5db;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+        }
+        /* Custom scrollbar for dark theme */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+        #collectionModal { display: none; } /* Hidden by default */
+        .modal-content { background-color: #1f2937; }
+
+        .tab-button {
+            padding: 0.5rem 1rem;
+            margin-right: 0.5rem;
+            border-radius: 0.375rem 0.375rem 0 0;
+            background-color: #374151;
+            border: 1px solid #4b5563;
+            border-bottom: none;
+            cursor: pointer;
+        }
+        .tab-button.active {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            padding: 1rem;
+            border: 1px solid #4b5563;
+            border-top: none;
+            border-radius: 0 0 0.375rem 0.375rem;
+        }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="min-h-screen p-4 selection:bg-indigo-500 selection:text-white">
+
+    <div class="container mx-auto max-w-7xl container-bg p-6 sm:p-8 rounded-xl shadow-2xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-indigo-400">Universal TCG Simulator</h1>
+            <p class="text-slate-400">Manage TCGs, simulate pack openings, and track your collection.</p>
+        </header>
+
+        <section id="controls" class="mb-8 p-6 bg-gray-800 rounded-lg shadow">
+            <h2 class="text-2xl font-semibold mb-4 text-indigo-300">Simulation Setup</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                    <label for="tcgSelect" class="block text-sm font-medium text-slate-300 mb-1">Select TCG:</label>
+                    <select id="tcgSelect" class="w-full"></select>
+                </div>
+                <div>
+                    <label for="setSelect" class="block text-sm font-medium text-slate-300 mb-1">Select Set:</label>
+                    <select id="setSelect" class="w-full"></select>
+                </div>
+                <div>
+                    <label for="productSelect" class="block text-sm font-medium text-slate-300 mb-1">Select Product:</label>
+                    <select id="productSelect" class="w-full"></select>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-4 justify-center">
+                <button id="openPackButton" class="btn btn-primary">Open Pack</button>
+                <button id="openBoxButton" class="btn btn-primary">Open Box</button>
+                <button id="viewCollectionButton" class="btn btn-secondary">View Collection</button>
+            </div>
+        </section>
+
+        <section id="resultsArea" class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-indigo-300">Simulation Results</h2>
+            <div id="packValueDisplay" class="text-lg font-semibold text-green-400 mb-4" style="display:none;">
+                Total Value: $<span id="totalPackValue">0.00</span>
+            </div>
+            <div id="simulationResults" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-4 min-h-[200px] p-1">
+                </div>
+        </section>
+
+        <div id="collectionModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+            <div class="modal-content max-w-4xl w-full p-6 rounded-lg shadow-xl max-h-[90vh] flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold text-indigo-300">My Collection</h2>
+                    <button id="closeCollectionModal" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+                
+                <div class="mb-4 border-b border-gray-600">
+                    <button class="tab-button active" data-tab="summaryView">Summary</button>
+                    <button class="tab-button" data-tab="detailedView">Detailed List</button>
+                </div>
+
+                <div id="summaryView" class="tab-content active overflow-y-auto">
+                    <p class="text-slate-400 mb-2">Cards grouped by TCG, Set, and Rarity.</p>
+                    <div id="collectionSummaryDisplay"></div>
+                </div>
+                <div id="detailedView" class="tab-content overflow-y-auto">
+                     <p class="text-slate-400 mb-2">All pulled cards listed individually.</p>
+                    <div id="collectionDetailedDisplay" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        </div>
+                </div>
+                 <button id="clearCollectionButton" class="btn btn-secondary mt-4 self-start">Clear Entire Collection</button>
+            </div>
+        </div>
+
+    </div>
+
+    <footer class="text-center mt-8 text-slate-500 text-sm">
+        <p>Simulator framework. Add your TCG data in the script.</p>
+    </footer>
+
+    <script>
+    // --- CORE DATA STRUCTURES ---
+    class TCGDatabase {
+        constructor() {
+            this.tcgs = []; // Array of TCG objects
+            this.userCollection = new UserCollection();
+        }
+
+        addTCG(tcg) {
+            this.tcgs.push(tcg);
+        }
+
+        getTCGById(id) {
+            return this.tcgs.find(tcg => tcg.id === id);
+        }
+
+        loadCollection() {
+            this.userCollection.load();
+        }
+
+        saveCollection() {
+            this.userCollection.save();
+        }
+    }
+
+    class TCG {
+        constructor(id, name) {
+            this.id = id;
+            this.name = name;
+            this.sets = []; // Array of CardSet objects
+        }
+
+        addSet(set) {
+            this.sets.push(set);
+        }
+
+        getSetById(id) {
+            return this.sets.find(s => s.id === id);
+        }
+    }
+
+    class CardSet {
+        constructor(id, name) {
+            this.id = id;
+            this.name = name;
+            this.rarities = []; // Array of Rarity objects
+            this.cards = [];    // Array of Card objects
+            this.products = []; // Array of Product objects
+        }
+
+        addRarity(rarity) { this.rarities.push(rarity); }
+        addCard(card) { this.cards.push(card); }
+        addProduct(product) { this.products.push(product); }
+
+        getCardsByRarity(rarityId) {
+            return this.cards.filter(card => card.rarityId === rarityId);
+        }
+        getProductById(id) {
+            return this.products.find(p => p.id === id);
+        }
+        getRarityById(id) {
+            return this.rarities.find(r => r.id === id);
+        }
+    }
+
+    class Rarity {
+        constructor(id, name, colorClass = 'rarity-C') { // colorClass for styling
+            this.id = id;
+            this.name = name;
+            this.colorClass = colorClass;
+        }
+    }
+
+    class Card {
+        constructor(id, name, rarityId, imageUrl = '', marketPrice = 0, number = '') {
+            this.id = id; // Unique ID for this card instance within the set
+            this.name = name;
+            this.rarityId = rarityId; // This should map to the ID of a Rarity object
+            this.imageUrl = imageUrl || `https://placehold.co/200x280/334155/e2e8f0?text=${encodeURIComponent(name)}`;
+            this.marketPrice = parseFloat(marketPrice) || 0;
+            this.number = number; // Collector number, e.g., OP01-001
+        }
+    }
+
+    class Product {
+        constructor(id, name, type, setId) { // type: 'pack', 'box', 'case'
+            this.id = id;
+            this.name = name;
+            this.type = type;
+            this.setId = setId; // To know which set this product belongs to
+
+            if (type === 'pack') {
+                this.cardsPerPack = 0;
+                this.slotConfiguration = []; 
+            } else if (type === 'box') {
+                this.packProductId = ''; 
+                this.packsPerBox = 0;
+                this.guarantees = []; 
+            } else if (type === 'case') { // Basic structure for case
+                this.boxProductId = ''; 
+                this.boxesPerCase = 0;
+                this.caseGuarantees = []; 
+            }
+        }
+    }
+
+    class UserCollection {
+        constructor() {
+            this.pulledCards = []; 
+        }
+
+        addCard(card, tcgId, setId, pulledFromProductName) {
+            this.pulledCards.push({ 
+                card: card, 
+                tcgId: tcgId, 
+                setId: setId,
+                pulledFrom: pulledFromProductName,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        getCollection() { return this.pulledCards; }
+
+        save() {
+            try {
+                localStorage.setItem('userTCGCollection', JSON.stringify(this.pulledCards));
+            } catch (e) {
+                console.error("Error saving collection to localStorage:", e);
+                alert("Could not save collection. LocalStorage might be full or disabled.");
+            }
+        }
+
+        load() {
+            const saved = localStorage.getItem('userTCGCollection');
+            if (saved) {
+                try {
+                    this.pulledCards = JSON.parse(saved);
+                } catch (e) {
+                    console.error("Error parsing saved collection:", e);
+                    this.pulledCards = [];
+                }
+            }
+        }
+        
+        clear() {
+            this.pulledCards = [];
+            localStorage.removeItem('userTCGCollection');
+            console.log("Collection cleared.");
+        }
+    }
+
+    // --- UPDATED SAMPLE DATA SETUP for ONE PIECE OP-01 ---
+    const DB = new TCGDatabase();
+
+    function initializeSampleData() {
+        // 1. Create One Piece TCG
+        const onePieceTCG = new TCG('one_piece_tcg', 'One Piece Card Game');
+        DB.addTCG(onePieceTCG);
+
+        // 2. Create OP-01 Romance Dawn Set
+        const op01Set = new CardSet('op01_romance_dawn', 'OP-01 Romance Dawn');
+        onePieceTCG.addSet(op01Set);
+
+        // 3. Define Rarities for OP-01
+        // IDs should be simple for mapping (e.g., 'C', 'UC', 'R', 'SR', 'L', 'SEC', 'R_P', 'SR_P', 'L_P', 'SEC_P', 'MANGA')
+        op01Set.addRarity(new Rarity('C', 'Common', 'rarity-C'));
+        op01Set.addRarity(new Rarity('UC', 'Uncommon', 'rarity-UC'));
+        op01Set.addRarity(new Rarity('R', 'Rare', 'rarity-R'));
+        op01Set.addRarity(new Rarity('SR', 'Super Rare', 'rarity-SR'));
+        op01Set.addRarity(new Rarity('L', 'Leader', 'rarity-L'));
+        op01Set.addRarity(new Rarity('SEC', 'Secret Rare', 'rarity-SEC'));
+        op01Set.addRarity(new Rarity('R_P', 'Rare Parallel', 'rarity-R_P'));
+        op01Set.addRarity(new Rarity('SR_P', 'Super Rare Parallel', 'rarity-SR_P'));
+        op01Set.addRarity(new Rarity('L_P', 'Leader Parallel', 'rarity-L_P'));
+        op01Set.addRarity(new Rarity('SEC_P', 'Secret Rare Parallel', 'rarity-SEC_P'));
+        op01Set.addRarity(new Rarity('MANGA', 'Manga Rare', 'rarity-MANGA')); // Special type of SEC Parallel
+
+        // 4. Add Sample Cards to OP-01 Romance Dawn
+        // Commons (Example: Otama)
+        op01Set.addCard(new Card('op01-006', 'Otama', 'C', 'https://tcgplayer-cdn.tcgplayer.com/product/454518_200w.jpg', 1.35, 'OP01-006'));
+        op01Set.addCard(new Card('op01-007', 'Caribou', 'C', 'https://tcgplayer-cdn.tcgplayer.com/product/454519_200w.jpg', 0.04, 'OP01-007'));
+        // Uncommons (Example: Nami (Event)) - Assuming Event cards are also 'cards'
+        op01Set.addCard(new Card('op01-030', 'In Two Years!! At the Sabaody Archipelago!!', 'UC', 'https://tcgplayer-cdn.tcgplayer.com/product/453512_200w.jpg', 0.25, 'OP01-030'));
+        op01Set.addCard(new Card('op01-008', 'Cavendish', 'C', 'https://tcgplayer-cdn.tcgplayer.com/product/454520_200w.jpg', 0.05, 'OP01-008')); // Example, actual Cavendish is R in some forms
+        // Rares (Example: Nami)
+        op01Set.addCard(new Card('op01-016', 'Nami', 'R', 'https://tcgplayer-cdn.tcgplayer.com/product/454534_200w.jpg', 3.09, 'OP01-016'));
+        // Super Rares (Example: Zoro)
+        op01Set.addCard(new Card('op01-025', 'Roronoa Zoro', 'SR', 'https://tcgplayer-cdn.tcgplayer.com/product/453510_200w.jpg', 5.71, 'OP01-025'));
+        // Leaders (Example: Trafalgar Law)
+        op01Set.addCard(new Card('op01-002', 'Trafalgar Law', 'L', 'https://tcgplayer-cdn.tcgplayer.com/product/453505_200w.jpg', 0.29, 'OP01-002'));
+        // Secret Rares (Example: Shanks)
+        op01Set.addCard(new Card('op01-120', 'Shanks', 'SEC', 'https://tcgplayer-cdn.tcgplayer.com/product/454664_200w.jpg', 2.36, 'OP01-120'));
+        // Parallels / Alt Arts
+        op01Set.addCard(new Card('op01-016_P', 'Nami (Parallel)', 'R_P', 'https://tcgplayer-cdn.tcgplayer.com/product/454536_200w.jpg', 213.00, 'OP01-016'));
+        op01Set.addCard(new Card('op01-025_P', 'Roronoa Zoro (Parallel)', 'SR_P', 'https://tcgplayer-cdn.tcgplayer.com/product/453511_200w.jpg', 78.26, 'OP01-025'));
+        op01Set.addCard(new Card('op01-002_P', 'Trafalgar Law (Parallel)', 'L_P', 'https://tcgplayer-cdn.tcgplayer.com/product/454514_200w.jpg', 255.74, 'OP01-002'));
+        op01Set.addCard(new Card('op01-120_P', 'Shanks (Parallel)', 'SEC_P', 'https://tcgplayer-cdn.tcgplayer.com/product/454665_200w.jpg', 14.86, 'OP01-120'));
+        op01Set.addCard(new Card('op01-120_MANGA', 'Shanks (Manga)', 'MANGA', 'https://tcgplayer-cdn.tcgplayer.com/product/454666_200w.jpg', 843.46, 'OP01-120')); // Manga Art Shanks
+        
+        // Add more C/UC/R to ensure pools are not empty for basic pack opening
+        for (let i = 10; i <= 20; i++) op01Set.addCard(new Card(`op01-c${i}`, `Sample Common ${i-9}`, 'C', '', 0.02, `OP01-C${i}`));
+        for (let i = 10; i <= 15; i++) op01Set.addCard(new Card(`op01-uc${i}`, `Sample Uncommon ${i-9}`, 'UC', '', 0.10, `OP01-UC${i}`));
+        for (let i = 10; i <= 12; i++) op01Set.addCard(new Card(`op01-r${i}`, `Sample Rare ${i-9}`, 'R', '', 0.25, `OP01-R${i}`));
+
+
+        // 5. Define Products for OP-01
+        const op01Pack = new Product('op01_pack', 'OP-01 Booster Pack', 'pack', 'op01_romance_dawn');
+        op01Pack.cardsPerPack = 12; 
+        op01Pack.slotConfiguration = [
+            { type: 'fixed', rarityId: 'C', count: 7 },
+            { type: 'fixed', rarityId: 'UC', count: 3 },
+            { 
+                type: 'pool', // Slot 11 (Typically Rare, can be Leader)
+                count: 1,
+                pool: [ 
+                    { rarityId: 'R', weight: 85 }, // 85% chance for a Rare
+                    { rarityId: 'L', weight: 15 }  // 15% chance for a Leader
+                ]
+            },
+            {
+                type: 'pool', // Slot 12 (The "Hit" slot - can be R up to Manga)
+                count: 1,
+                pool: [
+                    // Base rarities
+                    { rarityId: 'R', weight: 600 },     // e.g. 60%
+                    { rarityId: 'SR', weight: 200 },    // e.g. 20%
+                    { rarityId: 'L', weight: 50 },      // e.g. 5% (if not in slot 11) - or remove if L is only slot 11
+                    { rarityId: 'SEC', weight: 25 },    // e.g. 2.5%
+                    // Parallels (adjust weights based on actual rarity)
+                    { rarityId: 'R_P', weight: 60 },    // e.g. 6%
+                    { rarityId: 'SR_P', weight: 40 },   // e.g. 4%
+                    { rarityId: 'L_P', weight: 20 },    // e.g. 2%
+                    { rarityId: 'SEC_P', weight: 4 },   // e.g. 0.4%
+                    { rarityId: 'MANGA', weight: 1 }    // e.g. 0.1% (very rare)
+                ]
+            }
+        ];
+        op01Set.addProduct(op01Pack);
+
+        const op01Box = new Product('op01_box', 'OP-01 Booster Box', 'box', 'op01_romance_dawn');
+        op01Box.packProductId = 'op01_pack';
+        op01Box.packsPerBox = 24; 
+        op01Box.guarantees = [ // These are illustrative and simplified
+            { rarityId: 'SR', count: 3, isExact: false },    // At least 3 regular Super Rares
+            { rarityId: 'L', count: 2, isExact: false },     // At least 2 Leaders
+            { rarityId: 'SR_P', count: 1, isExact: false },  // At least 1 Super Rare Parallel
+            // SEC/MANGA typically average 1-2 per box for SEC, Manga much rarer.
+            // For simplicity, the guarantee system here is basic.
+            // A more accurate box might guarantee "2 hits of SEC/L_P/SR_P/MANGA rarity"
+        ];
+        op01Set.addProduct(op01Box);
+
+        // --- Keep the other TCG for demonstration unless asked to remove ---
+        const anotherTCG = new TCG('another_tcg', 'Ocean Explorers TCG');
+        DB.addTCG(anotherTCG);
+        const oceanSet = new CardSet('ocean_set', 'Deep Sea Wonders');
+        anotherTCG.addSet(oceanSet);
+        oceanSet.addRarity(new Rarity('C', 'Common', 'rarity-C'));
+        oceanSet.addRarity(new Rarity('UC', 'Uncommon', 'rarity-UC'));
+        oceanSet.addRarity(new Rarity('R', 'Rare', 'rarity-R'));
+        for (let i=1; i<=5; i++) oceanSet.addCard(new Card(`ocean_c${i}`, `Coral Common ${i}`, 'C', '', 0.03, `DS-C0${i}`));
+        for (let i=1; i<=3; i++) oceanSet.addCard(new Card(`ocean_uc${i}`, `Anemone Uncommon ${i}`, 'UC', '', 0.10, `DS-UC0${i}`));
+        oceanSet.addCard(new Card(`ocean_r1`, `Shark Rare`, 'R', '', 0.40, `DS-R01`));
+        
+        const oceanPack = new Product('ocean_pack', 'Deep Sea Pack', 'pack', 'ocean_set');
+        oceanPack.cardsPerPack = 5;
+        oceanPack.slotConfiguration = [
+            { type: 'fixed', rarityId: 'C', count: 3 },
+            { type: 'fixed', rarityId: 'UC', count: 1 },
+            { type: 'pool', count: 1, pool: [{ rarityId: 'R', weight: 100 }]} // Always a Rare
+        ];
+        oceanSet.addProduct(oceanPack);
+    }
+    
+
+    // --- SIMULATION LOGIC ---
+    function selectCardFromWeightedPool(pool, cardSet) {
+        const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0);
+        let randomNum = Math.random() * totalWeight;
+        
+        for (const item of pool) {
+            if (randomNum < item.weight) {
+                const availableCards = cardSet.getCardsByRarity(item.rarityId);
+                if (availableCards.length > 0) {
+                    return availableCards[Math.floor(Math.random() * availableCards.length)];
+                } else {
+                    console.warn(`Pool for rarity ${item.rarityId} in set ${cardSet.name} is empty! Trying next in pool.`);
+                    // Continue to next item in pool if this one is empty
+                }
+            }
+            randomNum -= item.weight;
+        }
+        // Fallback if entire pool was empty or something else went wrong
+        console.warn(`Could not select card from weighted pool for set ${cardSet.name}. Defaulting to any available Rare or Common.`);
+        let fallbackCards = cardSet.getCardsByRarity('R'); // Try Rare first
+        if (!fallbackCards || fallbackCards.length === 0) {
+            fallbackCards = cardSet.getCardsByRarity('C'); // Then Common
+        }
+        if (fallbackCards && fallbackCards.length > 0) {
+            return fallbackCards[Math.floor(Math.random() * fallbackCards.length)];
+        }
+        console.error(`CRITICAL: No cards available for fallback in set ${cardSet.name}`);
+        return null; // Should not happen if C pool is populated
+    }
+
+    function simulateOpenPack(tcgId, setId, productId) {
+        const tcg = DB.getTCGById(tcgId);
+        if (!tcg) { console.error("TCG not found:", tcgId); return []; }
+        const set = tcg.getSetById(setId);
+        if (!set) { console.error("Set not found:", setId); return []; }
+        const product = set.getProductById(productId);
+        if (!product || product.type !== 'pack') { console.error("Pack product not found or not a pack:", productId); return []; }
+
+        let pulledCards = [];
+        product.slotConfiguration.forEach(slot => {
+            for (let i = 0; i < slot.count; i++) {
+                let cardToPull;
+                if (slot.type === 'fixed') {
+                    const availableCards = set.getCardsByRarity(slot.rarityId);
+                    if (availableCards.length > 0) {
+                        cardToPull = availableCards[Math.floor(Math.random() * availableCards.length)];
+                    } else {
+                        console.warn(`No cards for fixed rarity ${slot.rarityId} in set ${set.name}. Skipping this card.`);
+                    }
+                } else if (slot.type === 'pool') {
+                    cardToPull = selectCardFromWeightedPool(slot.pool, set);
+                     if (!cardToPull) {
+                        console.warn(`Could not pull card from pool for set ${set.name}. Skipping this card.`);
+                    }
+                }
+                
+                if (cardToPull) {
+                    pulledCards.push(cardToPull);
+                    DB.userCollection.addCard(cardToPull, tcg.id, set.id, product.name);
+                }
+            }
+        });
+        DB.saveCollection(); // Save after pack opening
+        return pulledCards;
+    }
+
+    function simulateOpenBox(tcgId, setId, boxProductId) {
+        const tcg = DB.getTCGById(tcgId);
+        if (!tcg) { console.error("TCG not found for box:", tcgId); return []; }
+        const set = tcg.getSetById(setId);
+        if (!set) { console.error("Set not found for box:", setId); return []; }
+        const boxProduct = set.getProductById(boxProductId);
+        if (!boxProduct || boxProduct.type !== 'box') { console.error("Box product not found or not a box:", boxProductId); return []; }
+
+        let allPulledCardsInBox = [];
+        for (let i = 0; i < boxProduct.packsPerBox; i++) {
+            const packCards = simulateOpenPack(tcgId, setId, boxProduct.packProductId); 
+            allPulledCardsInBox.push(...packCards);
+        }
+
+        console.log(`Opened ${boxProduct.packsPerBox} packs from box ${boxProduct.name}. Raw pulls count: ${allPulledCardsInBox.length}`);
+        
+        // Apply Guarantees (Simplified placeholder)
+        // This current guarantee logic is very basic and doesn't handle complex scenarios like
+        // "at least X SR or SR_P", or ensuring variety, or avoiding too many duplicates if a pool is small.
+        // It also doesn't modify the actual `allPulledCardsInBox` if guarantees aren't met by chance.
+        // A full guarantee system would be significantly more complex.
+        if (boxProduct.guarantees && boxProduct.guarantees.length > 0) {
+            console.log("--- Checking Box Guarantees (Placeholder Logic) ---");
+            boxProduct.guarantees.forEach(guarantee => {
+                const currentCount = allPulledCardsInBox.filter(card => card && card.rarityId === guarantee.rarityId).length;
+                console.log(`Guarantee for ${guarantee.rarityId}: Target ${guarantee.count}${guarantee.isExact ? ' (exact)' : ' (at least)'}, Pulled ${currentCount}`);
+                if (!guarantee.isExact && currentCount < guarantee.count) {
+                    console.warn(`GUARANTEE NOT MET (by chance) for ${guarantee.rarityId}: Needed at least ${guarantee.count}, got ${currentCount}.`);
+                    // Advanced logic would try to "fix" this here by swapping cards.
+                } else if (guarantee.isExact && currentCount !== guarantee.count) {
+                     console.warn(`EXACT GUARANTEE NOT MET (by chance) for ${guarantee.rarityId}: Needed exactly ${guarantee.count}, got ${currentCount}.`);
+                }
+            });
+            console.log("--- End Box Guarantee Check ---");
+        }
+        // Note: Collection is saved per pack. Box-level adjustments to pulls would require
+        // modifying the collection after all packs are 'opened' and before a final save for the box.
+        return allPulledCardsInBox;
+    }
+
+
+    // --- UI FUNCTIONS ---
+    const tcgSelect = document.getElementById('tcgSelect');
+    const setSelect = document.getElementById('setSelect');
+    const productSelect = document.getElementById('productSelect');
+    const simulationResultsEl = document.getElementById('simulationResults');
+    const packValueDisplayEl = document.getElementById('packValueDisplay');
+    const totalPackValueEl = document.getElementById('totalPackValue');
+    
+    const collectionModal = document.getElementById('collectionModal');
+    const closeCollectionModalBtn = document.getElementById('closeCollectionModal');
+    const viewCollectionButton = document.getElementById('viewCollectionButton');
+    const collectionSummaryDisplayEl = document.getElementById('collectionSummaryDisplay');
+    const collectionDetailedDisplayEl = document.getElementById('collectionDetailedDisplay');
+    const clearCollectionButton = document.getElementById('clearCollectionButton');
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+
+    function populateTCGSelect() {
+        tcgSelect.innerHTML = '<option value="">-- Select TCG --</option>';
+        DB.tcgs.forEach(tcg => {
+            const option = document.createElement('option');
+            option.value = tcg.id;
+            option.textContent = tcg.name;
+            tcgSelect.appendChild(option);
+        });
+    }
+
+    function populateSetSelect(tcgId) {
+        setSelect.innerHTML = '<option value="">-- Select Set --</option>';
+        productSelect.innerHTML = '<option value="">-- Select Product --</option>'; 
+        const tcg = DB.getTCGById(tcgId);
+        if (tcg) {
+            tcg.sets.forEach(set => {
+                const option = document.createElement('option');
+                option.value = set.id;
+                option.textContent = set.name;
+                setSelect.appendChild(option);
+            });
+        }
+    }
+
+    function populateProductSelect(tcgId, setId) {
+        productSelect.innerHTML = '<option value="">-- Select Product --</option>';
+        const tcg = DB.getTCGById(tcgId);
+        if (!tcg) return;
+        const set = tcg.getSetById(setId);
+        if (set) {
+            set.products.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product.id;
+                option.textContent = `${product.name} (${product.type})`;
+                productSelect.appendChild(option);
+            });
+        }
+    }
+
+    function displayPulledCards(cards, targetElement = simulationResultsEl) {
+        targetElement.innerHTML = '';
+        let currentTotalValue = 0;
+        if (!cards || cards.length === 0) {
+            targetElement.innerHTML = '<p class="col-span-full text-center text-slate-400">No cards to display.</p>';
+            if (targetElement === simulationResultsEl) {
+                 packValueDisplayEl.style.display = 'none';
+            }
+            return;
+        }
+
+        cards.forEach(card => {
+            if (!card || !card.rarityId) { // Ensure card and rarityId exist
+                console.warn("Skipping invalid card in displayPulledCards:", card);
+                return; 
+            }
+            const cardEl = document.createElement('div');
+            cardEl.className = 'card flex flex-col text-xs'; 
+
+            // Find the set the card belongs to to get rarity details
+            // This assumes tcgSelect and setSelect have values if we are displaying sim results.
+            // For collection display, this might need a different way to find the set if not selected.
+            let currentTcgId = tcgSelect.value;
+            let currentSetId = setSelect.value;
+
+            // If displaying collection, card object might have tcgId/setId stored with it.
+            // For now, we assume displayPulledCards for simulation results uses current selections.
+            // For collection, the card objects themselves are directly from DB.userCollection.pulledCards.card
+            
+            const tcg = DB.getTCGById(currentTcgId || (targetElement !== simulationResultsEl && card.tcgId)); // A bit complex, needs refinement for collection
+            const set = tcg?.getSetById(currentSetId || (targetElement !== simulationResultsEl && card.setId));
+            const rarity = set?.getRarityById(card.rarityId);
+            
+            const rarityName = rarity ? rarity.name : card.rarityId;
+            const rarityColorClass = rarity ? rarity.colorClass : 'rarity-C'; // Default color
+
+            currentTotalValue += card.marketPrice || 0;
+
+            cardEl.innerHTML = `
+                <img src="${card.imageUrl}" alt="${card.name}" onerror="this.onerror=null;this.src='https://placehold.co/200x280/334155/e2e8f0?text=${encodeURIComponent(card.name)}';">
+                <div class="card-content flex-grow flex flex-col justify-between">
+                    <div>
+                        <p class="card-name text-sm leading-tight mb-0.5">${card.name}</p>
+                        <p class="text-xs text-slate-400 mb-1">${card.number || ''}</p>
+                        <span class="card-rarity-tag ${rarityColorClass}">${rarityName}</span>
+                    </div>
+                    <p class="text-xs font-semibold text-green-400 mt-1.5">$${(card.marketPrice || 0).toFixed(2)}</p>
+                </div>
+            `;
+            targetElement.appendChild(cardEl);
+        });
+        
+        if (targetElement === simulationResultsEl) {
+            totalPackValueEl.textContent = currentTotalValue.toFixed(2);
+            packValueDisplayEl.style.display = 'block';
+        }
+    }
+    
+    function displayCollection() {
+        const collectionItems = DB.userCollection.getCollection(); // These are {card, tcgId, setId, ...} objects
+        collectionSummaryDisplayEl.innerHTML = ''; 
+        collectionDetailedDisplayEl.innerHTML = ''; 
+
+        if (collectionItems.length === 0) {
+            collectionSummaryDisplayEl.innerHTML = '<p class="text-slate-300">Your collection is empty. Start opening packs!</p>';
+            collectionDetailedDisplayEl.innerHTML = '<p class="text-slate-300">Your collection is empty.</p>';
+            collectionModal.style.display = 'flex';
+            return;
+        }
+
+        // Detailed View
+        // We need to pass the actual card objects to displayPulledCards
+        // And ensure it can resolve rarity colors correctly
+        const detailedCardsHtml = collectionItems.map(item => {
+            const tcg = DB.getTCGById(item.tcgId);
+            const set = tcg?.getSetById(item.setId);
+            const rarity = set?.getRarityById(item.card.rarityId);
+            const rarityName = rarity ? rarity.name : item.card.rarityId;
+            const rarityColorClass = rarity ? rarity.colorClass : 'rarity-C';
+
+            return `
+                <div class="card flex flex-col text-xs">
+                    <img src="${item.card.imageUrl}" alt="${item.card.name}" onerror="this.onerror=null;this.src='https://placehold.co/200x280/334155/e2e8f0?text=${encodeURIComponent(item.card.name)}';">
+                    <div class="card-content flex-grow flex flex-col justify-between">
+                        <div>
+                            <p class="card-name text-sm leading-tight mb-0.5">${item.card.name}</p>
+                            <p class="text-xs text-slate-400 mb-1">${item.card.number || ''}</p>
+                            <span class="card-rarity-tag ${rarityColorClass}">${rarityName}</span>
+                             <p class="text-xxs text-slate-500 mt-1">Pulled from: ${item.pulledFrom || 'Unknown'}</p>
+                        </div>
+                        <p class="text-xs font-semibold text-green-400 mt-1.5">$${(item.card.marketPrice || 0).toFixed(2)}</p>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        collectionDetailedDisplayEl.innerHTML = detailedCardsHtml;
+
+
+        // Summary View
+        const summary = {}; 
+        collectionItems.forEach(item => {
+            const tcg = DB.getTCGById(item.tcgId);
+            const set = tcg?.getSetById(item.setId);
+            const cardRarity = set?.getRarityById(item.card.rarityId);
+
+            if (!tcg || !set || !cardRarity) return;
+
+            const tcgName = tcg.name;
+            const setName = set.name;
+            const rarityName = cardRarity.name;
+
+            summary[tcgName] = summary[tcgName] || {};
+            summary[tcgName][setName] = summary[tcgName][setName] || {};
+            summary[tcgName][setName][rarityName] = (summary[tcgName][setName][rarityName] || 0) + 1;
+        });
+
+        let summaryHtml = '';
+        for (const tcgName in summary) {
+            summaryHtml += `<h3 class="text-lg font-semibold mt-3 mb-1 text-indigo-400">${tcgName}</h3>`;
+            for (const setName in summary[tcgName]) {
+                summaryHtml += `<h4 class="text-md font-medium ml-2 mt-2 text-slate-300">${setName}</h4>`;
+                summaryHtml += '<ul class="list-disc ml-6 text-sm text-slate-400">';
+                for (const rarityName in summary[tcgName][setName]) {
+                    summaryHtml += `<li>${rarityName}: ${summary[tcgName][setName][rarityName]}</li>`;
+                }
+                summaryHtml += '</ul>';
+            }
+        }
+        collectionSummaryDisplayEl.innerHTML = summaryHtml || '<p class="text-slate-300">No summary available.</p>';
+        
+        collectionModal.style.display = 'flex';
+    }
+
+
+    // --- EVENT LISTENERS ---
+    tcgSelect.addEventListener('change', (e) => {
+        populateSetSelect(e.target.value);
+        simulationResultsEl.innerHTML = ''; packValueDisplayEl.style.display = 'none';
+    });
+    setSelect.addEventListener('change', (e) => {
+        populateProductSelect(tcgSelect.value, e.target.value);
+        simulationResultsEl.innerHTML = ''; packValueDisplayEl.style.display = 'none';
+    });
+
+    document.getElementById('openPackButton').addEventListener('click', () => {
+        const tcgId = tcgSelect.value;
+        const setId = setSelect.value;
+        const prodId = productSelect.value;
+        
+        if (!tcgId || !setId || !prodId) {
+            alert("Please select a TCG, Set, and Product.");
+            return;
+        }
+        const product = DB.getTCGById(tcgId)?.getSetById(setId)?.getProductById(prodId);
+
+        if (product && product.type === 'pack') {
+            const pulled = simulateOpenPack(tcgId, setId, prodId);
+            displayPulledCards(pulled);
+        } else {
+            alert("Please select a valid Pack Product.");
+        }
+    });
+
+    document.getElementById('openBoxButton').addEventListener('click', () => {
+        const tcgId = tcgSelect.value;
+        const setId = setSelect.value;
+        const prodId = productSelect.value;
+
+        if (!tcgId || !setId || !prodId) {
+            alert("Please select a TCG, Set, and Product.");
+            return;
+        }
+        const product = DB.getTCGById(tcgId)?.getSetById(setId)?.getProductById(prodId);
+
+        if (product && product.type === 'box') {
+            const pulledInBox = simulateOpenBox(tcgId, setId, prodId);
+            displayPulledCards(pulledInBox); 
+        } else {
+            alert("Please select a valid Box Product.");
+        }
+    });
+    
+    viewCollectionButton.addEventListener('click', displayCollection);
+    closeCollectionModalBtn.addEventListener('click', () => collectionModal.style.display = 'none');
+    
+    clearCollectionButton.addEventListener('click', () => {
+        if (confirm("Are you sure you want to clear your entire collection? This cannot be undone.")) {
+            DB.userCollection.clear();
+            DB.saveCollection(); 
+            displayCollection(); 
+            alert("Collection cleared.");
+        }
+    });
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            button.classList.add('active');
+            document.getElementById(button.dataset.tab).classList.add('active');
+        });
+    });
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeSampleData();
+        DB.loadCollection(); 
+        populateTCGSelect();
+        // Set initial tab for collection modal
+        const initialTab = document.querySelector('.tab-button[data-tab="summaryView"]');
+        if(initialTab) initialTab.click();
+    });
+
+    </script>
+</body>
+</html>
